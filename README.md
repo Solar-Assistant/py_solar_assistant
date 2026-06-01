@@ -1,6 +1,6 @@
 # py_solar_assistant
 
-Python client for SolarAssistant.
+Python client for SolarAssistant. Also available in [Go](https://github.com/Solar-Assistant/go_solar_assistant).
 
 ## Installation
 
