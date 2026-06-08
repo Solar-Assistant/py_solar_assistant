@@ -35,16 +35,16 @@ sites = await list_sites(client, inverter="srne", limit=50, offset=20)
 
 Common filters:
 
-| Key | Example |
-|-----|---------|
-| `name` | `name="my-site"` |
-| `inverter` | `inverter="srne"` |
-| `battery` | `battery="daly"` |
+| Key                            | Example                               |
+| ------------------------------ | ------------------------------------- |
+| `name`                         | `name="my-site"`                      |
+| `inverter`                     | `inverter="srne"`                     |
+| `battery`                      | `battery="daly"`                      |
 | `inverter_params_output_power` | `inverter_params_output_power="5000"` |
-| `last_seen_after` | `last_seen_after="2026-01-01"` |
-| `build_date_after` | `build_date_after="2026-02-26"` |
-| `limit` | `limit=50` |
-| `offset` | `offset=20` |
+| `last_seen_after`              | `last_seen_after="2026-01-01"`        |
+| `build_date_after`             | `build_date_after="2026-02-26"`       |
+| `limit`                        | `limit=50`                            |
+| `offset`                       | `offset=20`                           |
 
 ### Authorize a site
 
@@ -204,15 +204,15 @@ Raises `ValueError` if the device rejects the value.
 
 ### Options
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `host` | `str` | Hostname or `host:port` of the cloud proxy. |
-| `token` | `str` | JWT from `authorize_site`. Required for cloud and local-fallback connections. |
-| `password` | `str` | Web password for direct local connections. |
-| `site_id` | `int` | Required for cloud connections. |
-| `site_key` | `str` | Required for cloud connections. |
-| `local_ip` | `str` | If set, tries local network first and falls back to `host`. |
-| `verbose` | `bool` | Log all WebSocket frames at DEBUG level (via Python `logging`). |
+| Field      | Type   | Description                                                                   |
+| ---------- | ------ | ----------------------------------------------------------------------------- |
+| `host`     | `str`  | Hostname or `host:port` of the cloud proxy.                                   |
+| `token`    | `str`  | JWT from `authorize_site`. Required for cloud and local-fallback connections. |
+| `password` | `str`  | Web password for direct local connections.                                    |
+| `site_id`  | `int`  | Required for cloud connections.                                               |
+| `site_key` | `str`  | Required for cloud connections.                                               |
+| `local_ip` | `str`  | If set, tries local network first and falls back to `host`.                   |
+| `verbose`  | `bool` | Log all WebSocket frames at DEBUG level (via Python `logging`).               |
 
 ### Advanced: raw channel messages
 
@@ -224,12 +224,18 @@ sock.subscribe("*", "*", lambda msg: print(msg.topic, msg.event, msg.payload))
 
 Runnable scripts are in the [`examples/`](examples/) folder:
 
-| Script | Description |
-|--------|-------------|
-| [`rest_read.py`](examples/rest_read.py) | Fetch all metrics once via REST and print them grouped by device |
-| [`rest_set.py`](examples/rest_set.py) | Write a metric value via REST |
-| [`websocket_read.py`](examples/websocket_read.py) | Stream live metrics via WebSocket until Ctrl+C |
-| [`websocket_set.py`](examples/websocket_set.py) | Write a setting via WebSocket |
+| Script                                            | Description                                                      |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
+| [`rest_read.py`](examples/rest_read.py)           | Fetch all metrics once via REST and print them grouped by device |
+| [`rest_set.py`](examples/rest_set.py)             | Write a metric value via REST                                    |
+| [`websocket_read.py`](examples/websocket_read.py) | Stream live metrics via WebSocket until Ctrl+C                   |
+| [`websocket_set.py`](examples/websocket_set.py)   | Write a setting via WebSocket                                    |
+
+## Releasing
+
+Maintainers cut releases from a developer machine with `scripts/release.sh`. The version, changelog, tag, PyPI upload, and GitHub release
+are all driven by [Conventional Commits](https://www.conventionalcommits.org) via commitizen. See [RELEASING.md](RELEASING.md) for the full
+process.
 
 ## License
 
