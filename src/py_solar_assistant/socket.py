@@ -26,7 +26,6 @@ import asyncio
 import json
 import logging
 import socket as _socket
-import sys
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
@@ -281,7 +280,7 @@ class Socket:
 
     async def _dispatch_raw(self, raw: str) -> None:
         if self._verbose:
-            print(f"< recv {raw}", file=sys.stderr)
+            _LOGGER.debug("< recv %s", raw)
         msg = _decode(raw)
         if msg is None:
             return
@@ -298,7 +297,7 @@ class Socket:
     ) -> None:
         data = json.dumps([join_ref, ref, topic, event, payload])
         if self._verbose:
-            print(f"> send {data}", file=sys.stderr)
+            _LOGGER.debug("> send %s", data)
         await self._ws.send_str(data)
 
     def _next_ref(self) -> str:
@@ -399,7 +398,7 @@ async def _dial(
 
     url = f"{scheme}://{host}/api/websocket"
     if verbose:
-        print(f"> WS {url} params={params} headers={headers}", file=sys.stderr)
+        _LOGGER.debug("> WS %s params=%s headers=%s", url, params, headers)
 
     try:
         return await session.ws_connect(

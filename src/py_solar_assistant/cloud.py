@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
-import sys
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 import aiohttp
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://solar-assistant.io"
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
@@ -75,7 +77,7 @@ class SolarAssistantClient:
         owned = self._session is None
 
         if self.verbose:
-            print(f"> {method} {url} {params}", file=sys.stderr)
+            _LOGGER.debug("> %s %s %s", method, url, params)
 
         try:
             async with session.request(
@@ -83,7 +85,7 @@ class SolarAssistantClient:
             ) as resp:
                 body = await resp.read()
                 if self.verbose:
-                    print(f"< {resp.status} {body.decode(errors='replace').strip()}", file=sys.stderr)
+                    _LOGGER.debug("< %s %s", resp.status, body.decode(errors="replace").strip())
                 if resp.status != 200:
                     raise SolarAssistantError(resp.status, body.decode(errors="replace"))
                 return body

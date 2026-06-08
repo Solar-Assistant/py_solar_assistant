@@ -212,7 +212,7 @@ Raises `ValueError` if the device rejects the value.
 | `site_id` | `int` | Required for cloud connections. |
 | `site_key` | `str` | Required for cloud connections. |
 | `local_ip` | `str` | If set, tries local network first and falls back to `host`. |
-| `verbose` | `bool` | Log all WebSocket frames to stderr. |
+| `verbose` | `bool` | Log all WebSocket frames at DEBUG level (via Python `logging`). |
 
 ### Advanced: raw channel messages
 
