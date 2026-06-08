@@ -36,3 +36,12 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 py_solar_assistant = ["py.typed"]
+
+[tool.commitizen]
+version_provider = "pep621"
+version_files = [
+    "src/py_solar_assistant/__init__.py:__version__",
+]
+tag_format = "v$version"
+update_changelog_on_bump = true
+major_version_zero = true
