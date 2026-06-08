@@ -405,6 +405,7 @@ async def _dial(
             url,
             params=params,
             headers=headers,
+            heartbeat=HEARTBEAT_INTERVAL,
             timeout=aiohttp.ClientTimeout(connect=timeout, total=None),
         )
     except aiohttp.WSServerHandshakeError as e:
