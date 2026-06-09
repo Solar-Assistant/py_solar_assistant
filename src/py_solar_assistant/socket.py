@@ -284,6 +284,12 @@ class Socket:
         msg = _decode(raw)
         if msg is None:
             return
+        if msg.event == "phx_error":
+            raise ChannelError(f"channel {msg.topic!r} crashed (phx_error)")
+        if msg.event == "phx_reply" and msg.payload.get("status") == "error":
+            raise ChannelError(
+                f"channel {msg.topic!r} join failed: {msg.payload.get('response')}"
+            )
         for sub in list(self._subs):
             if (sub.topic == "*" or sub.topic == msg.topic) and (
                 sub.event == "*" or sub.event == msg.event
@@ -334,6 +340,10 @@ def _str(v: Any) -> str:
 
 class ConnectError(Exception):
     """Raised when a WebSocket connection cannot be established."""
+
+
+class ChannelError(Exception):
+    """Raised mid-stream when the server reports a channel failure."""
 
 
 async def connect(opts: Options) -> Socket:

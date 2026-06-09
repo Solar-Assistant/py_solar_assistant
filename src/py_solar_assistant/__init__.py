@@ -16,6 +16,7 @@ from .device import (
     set_metric,
 )
 from .socket import (
+    ChannelError,
     ConnectError,
     Message,
     Metric,
@@ -50,5 +51,6 @@ __all__ = [
     "Message",
     "TopicFilter",
     "ConnectError",
+    "ChannelError",
     "connect",
 ]
