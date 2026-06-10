@@ -13,6 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_BASE_URL = "https://solar-assistant.io"
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
 _PAGINATION_KEYS = ("limit", "offset")
+_SEARCH_KEY = "search"
 
 _SITES_PATH = "/api/v1/sites"
 _AUTHORIZE_PATH = "/api/v1/sites/{site_id}/authorize"
@@ -51,20 +52,24 @@ class SolarAssistantClient:
             self._session = None
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> bytes:
-        """GET <path> with optional filter params.
+        """GET <path> with optional filter/search params.
 
         Pagination keys (limit, offset) are sent as top-level query params.
-        All other keys are joined as key:value and sent as a single ?q= param.
+        A "search" value is sent as a bare term in ?q= (server-side prefix +
+        full-text match). All other keys become "key:value" filters joined
+        into the same ?q=.
         """
         q: dict[str, str] = {}
-        filters: list[str] = []
+        terms: list[str] = []
         for k, v in (params or {}).items():
             if k in _PAGINATION_KEYS:
                 q[k] = str(v)
+            elif k == _SEARCH_KEY:
+                terms.insert(0, str(v))
             else:
-                filters.append(f"{k}:{v}")
-        if filters:
-            q["q"] = " ".join(filters)
+                terms.append(f"{k}:{v}")
+        if terms:
+            q["q"] = " ".join(terms)
         return await self._do("GET", self._base_url + path, q)
 
     async def post(self, path: str) -> bytes:

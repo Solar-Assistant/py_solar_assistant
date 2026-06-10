@@ -33,11 +33,14 @@ Filter by inverter, battery, name, and more:
 sites = await list_sites(client, inverter="srne", limit=50, offset=20)
 ```
 
+Filters match exactly; use `search` for a prefix + full-text match.
+
 Common filters:
 
 | Key                            | Example                               |
 | ------------------------------ | ------------------------------------- |
-| `name`                         | `name="my-site"`                      |
+| `search`                       | `search="my-s"` (name prefix + text)  |
+| `name`                         | `name="my-site"` (exact)              |
 | `inverter`                     | `inverter="srne"`                     |
 | `battery`                      | `battery="daly"`                      |
 | `inverter_params_output_power` | `inverter_params_output_power="5000"` |
