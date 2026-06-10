@@ -193,19 +193,22 @@ async def get_device_metrics(
     topic: str | None = None,
     scheme: str = "http",
     timeout: float = 10.0,
+    site_id: int = 0,
+    site_key: str = "",
 ) -> list[DeviceMetric]:
     """Fetch ``GET /api/v1/metrics`` from a SolarAssistant unit.
 
     Auth: pass ``password`` for local HTTP Basic (``admin:<web-password>``),
-    or ``token`` for a Bearer-style JWT (works for both local and cloud
-    proxy hosts).
+    or ``token`` for a Bearer-style JWT. For a cloud-proxy host also pass
+    ``site_id`` and ``site_key`` so the proxy can route to the unit.
 
     Set ``discovery=True`` (default) to request the HA-discovery superset
     (``platform``, ``device_class``, ``min``/``max``/``options``/etc.).
     Set ``topic="inverter_1/foo"`` to filter the response to a single metric.
     """
     async with DeviceClient(
-        host, password=password, token=token, scheme=scheme, timeout=timeout
+        host, password=password, token=token, site_id=site_id, site_key=site_key,
+        scheme=scheme, timeout=timeout,
     ) as c:
         return await c.get_metrics(*([topic] if topic else []), discovery=discovery)
 
