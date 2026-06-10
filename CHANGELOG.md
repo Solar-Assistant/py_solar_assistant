@@ -1,3 +1,14 @@
+## v0.1.1 (2026-06-10)
+
+### Fix
+
+- **socket**: surface phx_error and join failures instead of hanging
+- **socket**: detect half-open connections via aiohttp heartbeat
+
+### Refactor
+
+- emit verbose debug output via logging instead of print
+
 ## v0.1.0 (2026-06-01)
 
 Initial release of the SolarAssistant Python client.
