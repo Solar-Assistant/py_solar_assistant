@@ -242,6 +242,8 @@ process.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 - see [LICENSE](LICENSE).
 
-This licence covers the Python client library in this repository only. The SolarAssistant platform — including the downloadable device software and cloud infrastructure — is proprietary and distributed under separate terms.
+This licence covers the Python client library in this repository only. The SolarAssistant platform, including the downloadable device
+software and cloud infrastructure, is proprietary and distributed under separate terms. See [NOTICE](NOTICE) for the copyright and scope
+statement.
