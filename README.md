@@ -240,6 +240,12 @@ Maintainers cut releases from a developer machine with `scripts/release.sh`. The
 are all driven by [Conventional Commits](https://www.conventionalcommits.org) via commitizen. See [RELEASING.md](RELEASING.md) for the full
 process.
 
+## Roadmap
+
+### Lint and tests
+
+Add `ruff` linting and a `pytest` suite, run as a `scripts/release.sh` preflight so releases are gated on a clean lint and a green test run.
+
 ## License
 
 Apache 2.0 - see [LICENSE](LICENSE).
