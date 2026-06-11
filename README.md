@@ -246,6 +246,10 @@ process.
 
 Add `ruff` linting and a `pytest` suite, run as a `scripts/release.sh` preflight so releases are gated on a clean lint and a green test run.
 
+### Harden `Socket.set_setting`
+
+Add a reply timeout, raise on error replies instead of hanging, preserve an existing topic filter instead of re-joining empty, and make it safe to call alongside `listen()`.
+
 ## License
 
 Apache 2.0 - see [LICENSE](LICENSE).
