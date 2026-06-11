@@ -8,6 +8,8 @@ from typing import Any
 
 import aiohttp
 
+from .socket import _redact_sensitive
+
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://solar-assistant.io"
@@ -90,7 +92,7 @@ class SolarAssistantClient:
             ) as resp:
                 body = await resp.read()
                 if self.verbose:
-                    _LOGGER.debug("< %s %s", resp.status, body.decode(errors="replace").strip())
+                    _LOGGER.debug("< %s %s", resp.status, _redact_body(body))
                 if resp.status != 200:
                     raise SolarAssistantError(resp.status, body.decode(errors="replace"))
                 return body
@@ -159,6 +161,18 @@ async def authorize_site(client: SolarAssistantClient, site_id: int) -> Authoriz
         token=r.get("token", ""),
         local_ip=r.get("local_ip", ""),
     )
+
+
+def _redact_body(body: bytes) -> str:
+    """Decode a response body for logging, redacting credential fields."""
+    text = body.decode(errors="replace").strip()
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return text
+    if isinstance(parsed, dict):
+        return json.dumps(_redact_sensitive(parsed, {"token", "site_key"}))
+    return text
 
 
 def _parse_site(s: dict[str, Any]) -> Site:

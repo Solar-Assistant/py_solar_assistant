@@ -334,6 +334,11 @@ def _str(v: Any) -> str:
     return v if isinstance(v, str) else ""
 
 
+def _redact_sensitive(data: dict[str, Any], keys: set[str]) -> dict[str, Any]:
+    """Return a copy of ``data`` with the values of ``keys`` replaced by ``[REDACTED]``."""
+    return {k: ("[REDACTED]" if k in keys else v) for k, v in data.items()}
+
+
 # ----------------------------------------------------------------------
 # Connect
 
@@ -408,7 +413,10 @@ async def _dial(
 
     url = f"{scheme}://{host}/api/websocket"
     if verbose:
-        _LOGGER.debug("> WS %s params=%s headers=%s", url, params, headers)
+        cred_key = "password" if is_password else "token"
+        safe_params = _redact_sensitive(params, {cred_key})
+        safe_headers = _redact_sensitive(headers, {"site-key"})
+        _LOGGER.debug("> WS %s params=%s headers=%s", url, safe_params, safe_headers)
 
     try:
         return await session.ws_connect(
