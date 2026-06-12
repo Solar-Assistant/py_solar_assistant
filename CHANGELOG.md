@@ -1,3 +1,14 @@
+## v0.2.0 (2026-06-12)
+
+### Feat
+
+- **cloud**: add free-text site name search
+
+### Fix
+
+- redact credentials in verbose debug logs
+- **device**: send site_id/site_key for cloud-proxy metric reads
+
 ## v0.1.1 (2026-06-10)
 
 ### Fix
