@@ -1,3 +1,9 @@
+## v0.2.1 (2026-06-14)
+
+### Fix
+
+- **deps**: cap aiohttp below 4.0 to avoid removed APIs
+
 ## v0.2.0 (2026-06-12)
 
 ### Feat

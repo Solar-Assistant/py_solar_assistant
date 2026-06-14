@@ -27,7 +27,7 @@ from .socket import (
     connect,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [  # noqa: RUF022  (grouped by client surface, not sorted alphabetically)
     "__version__",
