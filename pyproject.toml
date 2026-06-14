@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Home Automation",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = ["aiohttp>=3.9"]
+dependencies = ["aiohttp>=3.9,<4"]
 
 [project.urls]
 Homepage = "https://github.com/Solar-Assistant/py_solar_assistant"

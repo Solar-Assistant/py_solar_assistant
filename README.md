@@ -263,6 +263,13 @@ process.
 
 ## Roadmap
 
+### Upgrade to aiohttp 4.0
+
+The client is capped at `aiohttp<4` because three calls it makes are removed in 4.0: `DeviceClient`'s local-password auth
+(`aiohttp.BasicAuth` plus the request `auth=` parameter) and `Socket._dial`'s `ws_connect(timeout=ClientTimeout(...))`. To lift the cap,
+migrate those calls (a base64 `Authorization` header for Basic auth, `ClientWSTimeout` for the WebSocket timeout) and drop the matching
+`filterwarnings` suppressions in `pyproject.toml`.
+
 ### Harden `Socket.set_setting`
 
 Add a reply timeout, raise on error replies instead of hanging, preserve an existing topic filter instead of re-joining empty, and make it safe to call alongside `listen()`.
