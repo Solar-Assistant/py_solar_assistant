@@ -234,6 +234,27 @@ Runnable scripts are in the [`examples/`](examples/) folder:
 | [`websocket_read.py`](examples/websocket_read.py) | Stream live metrics via WebSocket until Ctrl+C                   |
 | [`websocket_set.py`](examples/websocket_set.py)   | Write a setting via WebSocket                                    |
 
+## Development
+
+Install the package editable (`-e`, so `src/` edits are picked up without reinstalling — the `src/` layout otherwise keeps it off
+`sys.path`) together with its dev/test dependencies. Those live in a [PEP 735](https://peps.python.org/pep-0735/) dependency group, kept
+out of the published wheel, and need `pip >= 25.1`:
+
+```bash
+python -m pip install -e . --group dev
+```
+
+The suite uses `pytest` + `pytest-asyncio`, driving the client against real local `aiohttp` test servers (no network, no mocking library):
+
+```bash
+python -m pytest          # run the tests
+ruff check .              # lint
+ruff format .             # format (use `ruff format --check .` to verify only)
+```
+
+`scripts/release.sh` runs ruff and the test suite as a preflight, so releases are gated on a clean lint, clean formatting, and a green
+test run.
+
 ## Releasing
 
 Maintainers cut releases from a developer machine with `scripts/release.sh`. The version, changelog, tag, PyPI upload, and GitHub release
@@ -241,10 +262,6 @@ are all driven by [Conventional Commits](https://www.conventionalcommits.org) vi
 process.
 
 ## Roadmap
-
-### Lint and tests
-
-Add `ruff` linting and a `pytest` suite, run as a `scripts/release.sh` preflight so releases are gated on a clean lint and a green test run.
 
 ### Harden `Socket.set_setting`
 

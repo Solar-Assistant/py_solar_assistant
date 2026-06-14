@@ -51,6 +51,7 @@ info() { echo "==> $*"; }
 CZ=(pipx run --spec commitizen cz)
 BUILD=(pipx run build)
 TWINE=(pipx run twine)
+RUFF=(pipx run ruff)
 
 PKG="py-solar-assistant"   # PyPI distribution name
 
@@ -108,6 +109,17 @@ if [ -n "$LAST_TAG" ]; then
   "${CZ[@]}" check --rev-range "$LAST_TAG..HEAD" \
     || die "non-compliant commit messages in $LAST_TAG..HEAD - reword them first"
 fi
+
+# --- Lint + test preflight (gate the release) ------------------------------
+# Releases are gated on a clean lint, clean formatting, and a green test run.
+info "Linting with ruff"
+"${RUFF[@]}" check .
+"${RUFF[@]}" format --check .
+
+info "Running the test suite"
+python -c 'import py_solar_assistant, pytest, pytest_asyncio, aiohttp' 2>/dev/null \
+  || die "test dependencies missing - run: python -m pip install -e . --group dev"
+python -m pytest -q
 
 # --- Compute the next version ----------------------------------------------
 CURRENT="$("${CZ[@]}" version -p)"

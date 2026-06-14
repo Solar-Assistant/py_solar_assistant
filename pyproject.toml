@@ -45,3 +45,64 @@ version_files = [
 tag_format = "v$version"
 update_changelog_on_bump = true
 major_version_zero = true
+
+[dependency-groups]
+# Dev/test dependencies (PEP 735); see the README "Development" section for setup.
+test = [
+    "pytest>=8.2",
+    "pytest-asyncio>=1.0",
+]
+dev = [
+    {include-group = "test"},
+    "ruff>=0.15",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+# "auto": asyncio-only suite, so async tests/fixtures need no per-test marker.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+]
+xfail_strict = true
+# "error" turns a leaked aiohttp session/connector (a ResourceWarning) into a
+# failure. The ignores are aiohttp 3.14 deprecations the client hasn't migrated
+# yet (removed in 4.0; tracked in the README roadmap, hence the aiohttp<4 pin).
+filterwarnings = [
+    "error",
+    "ignore:BasicAuth is deprecated:DeprecationWarning",
+    "ignore:The 'auth' parameter is deprecated:DeprecationWarning",
+    "ignore:parameter 'timeout' of type:DeprecationWarning",
+]
+
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # Pyflakes
+    "I",       # isort
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "SIM",     # flake8-simplify
+    "C4",      # flake8-comprehensions
+    "ASYNC",   # flake8-async (this is an aiohttp/asyncio client)
+    "RUF",     # Ruff-specific rules
+]
+ignore = [
+    "E501",      # line length is the formatter's responsibility
+    "ASYNC109",  # timeout params are deliberate public API (forwarded to
+                 # aiohttp.ClientTimeout), not a stand-in for asyncio.timeout().
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ARG"]  # unused fixture arguments are idiomatic in pytest
