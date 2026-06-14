@@ -1,4 +1,5 @@
 """SolarAssistant cloud API client — authentication, sites, and authorization."""
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,7 @@ class SolarAssistantClient:
         self.verbose = verbose
         self._session: aiohttp.ClientSession | None = None
 
-    async def __aenter__(self) -> "SolarAssistantClient":
+    async def __aenter__(self) -> SolarAssistantClient:
         self._session = aiohttp.ClientSession()
         return self
 

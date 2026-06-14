@@ -5,6 +5,7 @@ Topic format matches the read topic, e.g. 'inverter_1/power_mode'.
 Usage:
     python rest_set.py inverter_1/power_mode "Off grid with relay"
 """
+
 import asyncio
 import sys
 

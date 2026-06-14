@@ -1,4 +1,5 @@
 """REST client for direct communication with SolarAssistant units."""
+
 from __future__ import annotations
 
 import json as _json
@@ -22,6 +23,7 @@ class DeviceMetric:
     ``payload_on``, ``payload_off``) are populated only when the request
     used ``?discovery``; otherwise they're ``None``.
     """
+
     topic: str
     name: str
     unit: str
@@ -79,7 +81,7 @@ class DeviceClient:
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._session: aiohttp.ClientSession | None = None
 
-    async def __aenter__(self) -> "DeviceClient":
+    async def __aenter__(self) -> DeviceClient:
         self._session = aiohttp.ClientSession()
         return self
 
@@ -151,7 +153,10 @@ class DeviceClient:
         session, owned = self._session_or_new()
         try:
             async with session.get(
-                url, auth=auth, headers=headers, timeout=self._timeout,
+                url,
+                auth=auth,
+                headers=headers,
+                timeout=self._timeout,
             ) as resp:
                 body = await resp.read()
                 if resp.status != 200:
@@ -207,8 +212,13 @@ async def get_device_metrics(
     Set ``topic="inverter_1/foo"`` to filter the response to a single metric.
     """
     async with DeviceClient(
-        host, password=password, token=token, site_id=site_id, site_key=site_key,
-        scheme=scheme, timeout=timeout,
+        host,
+        password=password,
+        token=token,
+        site_id=site_id,
+        site_key=site_key,
+        scheme=scheme,
+        timeout=timeout,
     ) as c:
         return await c.get_metrics(*([topic] if topic else []), discovery=discovery)
 

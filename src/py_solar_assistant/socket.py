@@ -20,14 +20,16 @@ Cloud usage (API key → authorize → connect)::
     await sock.subscribe_metrics(handler)
     await sock.listen()
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
 import socket as _socket
-from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 import aiohttp
 
@@ -55,6 +57,7 @@ class Metric:
     discovery payload (SA backend update of 2026-05-07). On older builds
     they remain ``None``.
     """
+
     topic: str
     device: str
     number: int | None
@@ -76,6 +79,7 @@ class Metric:
 @dataclass
 class Message:
     """A raw Phoenix Channel message: ``[join_ref, ref, topic, event, payload]``."""
+
     join_ref: str
     ref: str
     topic: str
@@ -94,6 +98,7 @@ class Options:
         Set ``host``, ``token``, ``site_id``, ``site_key`` (all from AuthorizeResponse).
         Optionally set ``local_ip`` to try local network first and fall back to cloud.
     """
+
     host: str = ""
     local_ip: str = ""
     token: str = ""
@@ -195,7 +200,9 @@ class Socket:
             if ch_topic == "metrics" and event == "phx_reply" and payload.get("status") == "ok":
                 break
 
-        await self._send(join_ref, self._next_ref(), "metrics", "set", {"topic": topic, "value": value})
+        await self._send(
+            join_ref, self._next_ref(), "metrics", "set", {"topic": topic, "value": value}
+        )
 
         async for raw in self._ws:
             frame = json.loads(raw.data)
@@ -287,9 +294,7 @@ class Socket:
         if msg.event == "phx_error":
             raise ChannelError(f"channel {msg.topic!r} crashed (phx_error)")
         if msg.event == "phx_reply" and msg.payload.get("status") == "error":
-            raise ChannelError(
-                f"channel {msg.topic!r} join failed: {msg.payload.get('response')}"
-            )
+            raise ChannelError(f"channel {msg.topic!r} join failed: {msg.payload.get('response')}")
         for sub in list(self._subs):
             if (sub.topic == "*" or sub.topic == msg.topic) and (
                 sub.event == "*" or sub.event == msg.event
@@ -298,9 +303,7 @@ class Socket:
                 if asyncio.iscoroutine(result):
                     await result
 
-    async def _send(
-        self, join_ref: str, ref: str, topic: str, event: str, payload: Any
-    ) -> None:
+    async def _send(self, join_ref: str, ref: str, topic: str, event: str, payload: Any) -> None:
         data = json.dumps([join_ref, ref, topic, event, payload])
         if self._verbose:
             _LOGGER.debug("> send %s", data)
@@ -365,9 +368,15 @@ async def connect(opts: Options) -> Socket:
         is_password = bool(opts.password)
         try:
             ws = await _dial(
-                session, "ws", opts.local_ip,
-                credential, is_password, 0, "",
-                LOCAL_CONNECT_TIMEOUT, opts.verbose,
+                session,
+                "ws",
+                opts.local_ip,
+                credential,
+                is_password,
+                0,
+                "",
+                LOCAL_CONNECT_TIMEOUT,
+                opts.verbose,
             )
             return Socket(ws, session, opts.local_ip, opts.verbose)
         except Exception as exc:
@@ -382,9 +391,15 @@ async def connect(opts: Options) -> Socket:
 
     try:
         ws = await _dial(
-            session, "wss", opts.host,
-            opts.token, False, opts.site_id, opts.site_key,
-            CLOUD_CONNECT_TIMEOUT, opts.verbose,
+            session,
+            "wss",
+            opts.host,
+            opts.token,
+            False,
+            opts.site_id,
+            opts.site_key,
+            CLOUD_CONNECT_TIMEOUT,
+            opts.verbose,
         )
         return Socket(ws, session, opts.host, opts.verbose)
     except Exception:
@@ -429,7 +444,7 @@ async def _dial(
     except aiohttp.WSServerHandshakeError as e:
         msg = _handshake_error_message(e.status)
         raise ConnectError(msg) from e
-    except asyncio.TimeoutError as e:
+    except TimeoutError as e:
         raise ConnectError("connection timed out — is the device reachable?") from e
     except aiohttp.ClientConnectorError as e:
         if isinstance(e.os_error, _socket.gaierror):

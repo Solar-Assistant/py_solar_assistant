@@ -1,7 +1,8 @@
 """Python client for SolarAssistant — cloud API and real-time WebSocket."""
+
 from .cloud import (
-    AuthorizeResponse,
     DEFAULT_BASE_URL,
+    AuthorizeResponse,
     Site,
     SiteOwner,
     SolarAssistantClient,
@@ -28,7 +29,7 @@ from .socket import (
 
 __version__ = "0.2.0"
 
-__all__ = [
+__all__ = [  # noqa: RUF022  (grouped by client surface, not sorted alphabetically)
     "__version__",
     # Cloud API
     "DEFAULT_BASE_URL",

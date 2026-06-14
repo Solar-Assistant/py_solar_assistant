@@ -5,6 +5,7 @@ Topic format matches the read topic, e.g. 'inverter_1/power_mode'.
 Usage:
     python websocket_set.py inverter_1/power_mode "Off grid with relay"
 """
+
 import asyncio
 import sys
 
@@ -25,7 +26,7 @@ async def main() -> None:
 
     print(f"Connecting to {HOST} …")
     sock = await sa.connect(opts)
-    print(f"Connected\n")
+    print("Connected\n")
 
     try:
         await sock.set_setting(topic, value)

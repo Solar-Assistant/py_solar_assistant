@@ -1,4 +1,5 @@
 """WebSocket example: stream real-time metrics from a local SolarAssistant device."""
+
 import asyncio
 
 import py_solar_assistant as sa
@@ -18,7 +19,7 @@ async def main() -> None:
 
     print(f"Connecting to {HOST} …")
     sock = await sa.connect(opts)
-    print(f"Connected — streaming metrics (Ctrl+C to stop)\n")
+    print("Connected — streaming metrics (Ctrl+C to stop)\n")
 
     try:
         await sock.subscribe_metrics(on_metric)

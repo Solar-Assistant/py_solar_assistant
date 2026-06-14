@@ -1,4 +1,5 @@
 """REST example: fetch all metrics from a local SolarAssistant device."""
+
 import asyncio
 
 import py_solar_assistant as sa
