@@ -9,7 +9,7 @@ PASSWORD = "your-local-password"
 
 
 def on_metric(m: sa.Metric) -> None:
-    label = m.device if not m.number else f"{m.device} #{m.number}"
+    label = m.device if m.number is None else f"{m.device} #{m.number}"
     unit = f" {m.unit}" if m.unit else ""
     print(f"[{label}] {m.name}: {m.value}{unit}", flush=True)
 

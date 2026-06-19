@@ -17,7 +17,7 @@ async def main() -> None:
     for m in metrics:
         if m.device != current_device:
             current_device = m.device
-            label = m.device if not m.number else f"{m.device} #{m.number}"
+            label = m.device if m.number is None else f"{m.device} #{m.number}"
             print(f"--- {label} ---")
         unit = f" {m.unit}" if m.unit else ""
         print(f"  {m.name}: {m.value}{unit}")
