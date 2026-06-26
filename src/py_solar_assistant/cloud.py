@@ -6,26 +6,24 @@ import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlencode
 
 import aiohttp
 
+from ._errors import http_error
 from .socket import _redact_sensitive
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://solar-assistant.io"
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
+
 _PAGINATION_KEYS = ("limit", "offset")
 _SEARCH_KEY = "search"
+_SENSITIVE_FIELDS = {"token", "site_key", "api_key", "password"}
 
 _SITES_PATH = "/api/v1/sites"
 _AUTHORIZE_PATH = "/api/v1/sites/{site_id}/authorize"
-
-
-class SolarAssistantError(Exception):
-    def __init__(self, status: int, message: str) -> None:
-        super().__init__(f"API error {status}: {message.strip()}")
-        self.status = status
 
 
 class SolarAssistantClient:
@@ -95,7 +93,8 @@ class SolarAssistantClient:
                 if self.verbose:
                     _LOGGER.debug("< %s %s", resp.status, _redact_body(body))
                 if resp.status != 200:
-                    raise SolarAssistantError(resp.status, body.decode(errors="replace"))
+                    endpoint = f"{url}?{urlencode(params)}" if params else url
+                    raise http_error(method, endpoint, resp.status)
                 return body
         finally:
             if owned:
@@ -165,14 +164,16 @@ async def authorize_site(client: SolarAssistantClient, site_id: int) -> Authoriz
 
 
 def _redact_body(body: bytes) -> str:
-    """Decode a response body for logging, redacting credential fields."""
+    """Decode a response body for the verbose debug log, with best-effort
+    redaction of top-level credential fields.
+    """
     text = body.decode(errors="replace").strip()
     try:
         parsed = json.loads(text)
     except (json.JSONDecodeError, ValueError):
         return text
     if isinstance(parsed, dict):
-        return json.dumps(_redact_sensitive(parsed, {"token", "site_key"}))
+        return json.dumps(_redact_sensitive(parsed, _SENSITIVE_FIELDS))
     return text
 
 

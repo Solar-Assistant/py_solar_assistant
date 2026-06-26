@@ -1,12 +1,12 @@
 """Python client for SolarAssistant — cloud API and real-time WebSocket."""
 
+from ._errors import SolarAssistantError
 from .cloud import (
     DEFAULT_BASE_URL,
     AuthorizeResponse,
     Site,
     SiteOwner,
     SolarAssistantClient,
-    SolarAssistantError,
     authorize_site,
     list_sites,
 )

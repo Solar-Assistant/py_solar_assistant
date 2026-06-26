@@ -170,7 +170,6 @@ class TestErrors:
             with pytest.raises(SolarAssistantError) as excinfo:
                 await list_sites(client)
         assert excinfo.value.status == 403
-        assert "forbidden" in str(excinfo.value)
 
     async def test_authorize_error_propagates(self, cloud_server):
         cloud_server.cfg.status = 404
@@ -178,6 +177,29 @@ class TestErrors:
             with pytest.raises(SolarAssistantError) as excinfo:
                 await authorize_site(client, 99)
         assert excinfo.value.status == 404
+
+    async def test_message_carries_endpoint_not_body(self, cloud_server):
+        # The message is method + endpoint + status, never the response body -
+        # not even a credential in free text, which key-based redaction couldn't
+        # scrub. That's why the body is dropped wholesale rather than filtered.
+        cloud_server.cfg.status = 400
+        cloud_server.cfg.error_body = {"error": "denied for token=leakme"}
+        async with SolarAssistantClient("k", base_url=cloud_server.url) as client:
+            with pytest.raises(SolarAssistantError) as excinfo:
+                await list_sites(client)
+        msg = str(excinfo.value)
+        assert excinfo.value.status == 400
+        assert "GET" in msg and "/api/v1/sites" in msg  # useful diagnostics kept
+        assert "leakme" not in msg and "denied" not in msg  # nothing from the body
+
+    async def test_error_message_includes_query(self, cloud_server):
+        # The query identifies which request failed; it's folded into the
+        # endpoint so two searches don't render identical error text.
+        cloud_server.cfg.status = 500
+        async with SolarAssistantClient("k", base_url=cloud_server.url) as client:
+            with pytest.raises(SolarAssistantError) as excinfo:
+                await list_sites(client, search="boom")
+        assert "q=boom" in str(excinfo.value)
 
 
 class TestSessionOwnership:
