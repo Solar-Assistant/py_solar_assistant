@@ -9,7 +9,8 @@ from urllib.parse import quote
 
 import aiohttp
 
-from .cloud import SolarAssistantError
+from ._errors import SolarAssistantError, http_error
+from ._url import safe_url
 
 _DEVICE_REST_USERNAME = "admin"
 
@@ -130,16 +131,62 @@ class DeviceClient:
                 headers=headers,
                 timeout=self._timeout,
             ) as resp:
-                body = await resp.read()
                 if resp.status != 200:
-                    try:
-                        msg = _json.loads(body).get("error", body.decode(errors="replace"))
-                    except Exception:
-                        msg = body.decode(errors="replace")
-                    raise SolarAssistantError(resp.status, msg)
+                    raise http_error("POST", url, resp.status)
         finally:
             if owned:
                 await session.close()
+
+    async def get_system_metrics(self) -> list[DeviceMetric]:
+        """Fetch system metrics via ``GET /api/v1/system``.
+
+        Returns the unit's system metric rows in the same shape as
+        :meth:`get_metrics`. A non-200 raises :class:`SolarAssistantError`.
+        """
+        url = f"{self._scheme}://{self._host}/api/v1/system"
+        return await self._get_rows(url)
+
+    async def get_site_id(self) -> int | None:
+        """Return the unit's numeric ``site_id`` from ``GET /api/v1/system``.
+
+        ``None`` when the ``site_id`` row is absent, the unit is unregistered (the
+        value is null), or it can't be read as an int. A non-200 raises.
+        """
+        return _as_int(await self._system_value("system/site_id"))
+
+    async def get_software_version(self) -> str | None:
+        """Return the unit's software/build version from ``GET /api/v1/system``.
+
+        ``None`` when the value is unset (null or blank). A non-200 raises.
+        """
+        return _as_str(await self._system_value("system/software_version"))
+
+    async def get_cpu_temperature(self) -> int | None:
+        """Return the unit's CPU temperature in °C from ``GET /api/v1/system``.
+
+        ``None`` when the sensor read failed or the value can't be read as an int.
+        A non-200 raises.
+        """
+        return _as_int(await self._system_value("system/cpu_temperature"))
+
+    async def get_free_storage(self) -> int | None:
+        """Return free root-filesystem storage in MB from ``GET /api/v1/system``.
+
+        ``None`` when the read failed or the value can't be read as an int. A
+        non-200 raises.
+        """
+        return _as_int(await self._system_value("system/free_storage"))
+
+    async def _system_value(self, topic: str) -> Any:
+        """Raw value of one ``/api/v1/system`` row, or ``None`` if that row is absent.
+
+        Each accessor fetches the endpoint independently; to read several values
+        in one request use :meth:`get_system_metrics` and pick them out yourself.
+        """
+        for m in await self.get_system_metrics():
+            if m.topic == topic:
+                return m.value
+        return None
 
     async def _fetch(self, topic: str | None, *, discovery: bool) -> list[DeviceMetric]:
         params: list[str] = []
@@ -149,6 +196,14 @@ class DeviceClient:
             params.append(f"topic={quote(topic, safe='')}")
         query = ("?" + "&".join(params)) if params else ""
         url = f"{self._scheme}://{self._host}/api/v1/metrics{query}"
+        return await self._get_rows(url)
+
+    async def _get_rows(self, url: str) -> list[DeviceMetric]:
+        """GET ``url`` and parse its JSON array into ``DeviceMetric`` rows.
+
+        Any non-200 raises; a 200 whose body isn't a JSON array
+        of objects raises rather than crashing ``_row_to_metric``.
+        """
         auth, headers = _device_auth(self._password, self._token, self._site_id, self._site_key)
         session, owned = self._session_or_new()
         try:
@@ -158,13 +213,23 @@ class DeviceClient:
                 headers=headers,
                 timeout=self._timeout,
             ) as resp:
-                body = await resp.read()
                 if resp.status != 200:
-                    raise SolarAssistantError(resp.status, body.decode(errors="replace"))
-                rows = _json.loads(body)
+                    raise http_error("GET", url, resp.status)
+
+                body = await resp.read()
+                try:
+                    rows = _json.loads(body)
+                except ValueError as err:
+                    raise SolarAssistantError(None, f"invalid JSON from {safe_url(url)}") from err
         finally:
             if owned:
                 await session.close()
+
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+            raise SolarAssistantError(
+                None, f"expected a JSON array of objects from {safe_url(url)}"
+            )
+
         return [_row_to_metric(r) for r in rows]
 
     def _session_or_new(self) -> tuple[aiohttp.ClientSession, bool]:
@@ -257,6 +322,158 @@ async def set_metric(
         timeout=timeout,
     ) as c:
         await c.set_metric(topic, value)
+
+
+async def get_device_system_metrics(
+    host: str,
+    *,
+    password: str | None = None,
+    token: str | None = None,
+    scheme: str = "http",
+    timeout: float = 10.0,
+    site_id: int = 0,
+    site_key: str = "",
+) -> list[DeviceMetric]:
+    """Fetch ``GET /api/v1/system`` from a SolarAssistant unit.
+
+    Returns the system metric rows; a non-200 raises :class:`SolarAssistantError`.
+    See :meth:`DeviceClient.get_system_metrics`.
+
+    Auth mirrors :func:`get_device_metrics`: ``password`` for local HTTP Basic,
+    or ``token`` (plus ``site_id``/``site_key`` for a cloud-proxy host).
+    """
+    async with DeviceClient(
+        host,
+        password=password,
+        token=token,
+        site_id=site_id,
+        site_key=site_key,
+        scheme=scheme,
+        timeout=timeout,
+    ) as c:
+        return await c.get_system_metrics()
+
+
+async def get_device_site_id(
+    host: str,
+    *,
+    password: str | None = None,
+    token: str | None = None,
+    scheme: str = "http",
+    timeout: float = 10.0,
+) -> int | None:
+    """Read the unit's numeric ``site_id`` via ``GET /api/v1/system``.
+
+    Returns ``None`` when the unit is unregistered or the value is unreadable; a
+    non-200 raises.
+
+    Takes no cloud-proxy ``site_id`` / ``site_key`` params, unlike the other
+    device helpers: ``site_id`` is one of them, so a caller that could supply
+    them already knows it and has no reason to read it back. This helper is for
+    discovering the ``site_id`` over a local (password) connection, where it
+    isn't known up front.
+    """
+    async with DeviceClient(
+        host,
+        password=password,
+        token=token,
+        scheme=scheme,
+        timeout=timeout,
+    ) as c:
+        return await c.get_site_id()
+
+
+async def get_device_software_version(
+    host: str,
+    *,
+    password: str | None = None,
+    token: str | None = None,
+    scheme: str = "http",
+    timeout: float = 10.0,
+    site_id: int = 0,
+    site_key: str = "",
+) -> str | None:
+    """Read the unit's software/build version via ``GET /api/v1/system``.
+
+    ``None`` if the value is unset; a non-200 raises. See
+    :meth:`DeviceClient.get_software_version`.
+    """
+    async with DeviceClient(
+        host,
+        password=password,
+        token=token,
+        site_id=site_id,
+        site_key=site_key,
+        scheme=scheme,
+        timeout=timeout,
+    ) as c:
+        return await c.get_software_version()
+
+
+async def get_device_cpu_temperature(
+    host: str,
+    *,
+    password: str | None = None,
+    token: str | None = None,
+    scheme: str = "http",
+    timeout: float = 10.0,
+    site_id: int = 0,
+    site_key: str = "",
+) -> int | None:
+    """Read the unit's CPU temperature in °C via ``GET /api/v1/system``.
+
+    ``None`` if the read failed or the value is unreadable; a non-200 raises.
+    See :meth:`DeviceClient.get_cpu_temperature`.
+    """
+    async with DeviceClient(
+        host,
+        password=password,
+        token=token,
+        site_id=site_id,
+        site_key=site_key,
+        scheme=scheme,
+        timeout=timeout,
+    ) as c:
+        return await c.get_cpu_temperature()
+
+
+async def get_device_free_storage(
+    host: str,
+    *,
+    password: str | None = None,
+    token: str | None = None,
+    scheme: str = "http",
+    timeout: float = 10.0,
+    site_id: int = 0,
+    site_key: str = "",
+) -> int | None:
+    """Read free root-filesystem storage in MB via ``GET /api/v1/system``.
+
+    ``None`` if the read failed or the value is unreadable; a non-200 raises.
+    See :meth:`DeviceClient.get_free_storage`.
+    """
+    async with DeviceClient(
+        host,
+        password=password,
+        token=token,
+        site_id=site_id,
+        site_key=site_key,
+        scheme=scheme,
+        timeout=timeout,
+    ) as c:
+        return await c.get_free_storage()
+
+
+def _as_int(value: Any) -> int | None:
+    """Return an integer value, or ``None`` if it isn't one."""
+    return value if isinstance(value, int) else None
+
+
+def _as_str(value: Any) -> str | None:
+    """Return a string value, or ``None`` if it isn't one or is blank."""
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
 
 
 def _row_to_metric(r: dict[str, Any]) -> DeviceMetric:

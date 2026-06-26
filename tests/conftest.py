@@ -146,6 +146,10 @@ async def device_server(make_server: ServerFactory) -> RecordingServer:
     ``{topic: rows}`` map keyed by the ``?topic=`` value, ``None`` for no filter)
     is set. Error responses come from ``cfg.get_status``/``cfg.get_body`` and
     ``cfg.post_status``/``cfg.post_body``.
+
+    ``GET /api/v1/system`` returns ``cfg.system_rows`` (status
+    ``cfg.system_status``/body ``cfg.system_body`` on error), or
+    ``cfg.system_raw`` (bytes) to return a non-JSON 200 body verbatim.
     """
     cfg = SimpleNamespace(
         rows=[],
@@ -154,6 +158,10 @@ async def device_server(make_server: ServerFactory) -> RecordingServer:
         get_body=None,
         post_status=200,
         post_body=None,
+        system_rows=[],
+        system_status=200,
+        system_body=None,
+        system_raw=None,
     )
 
     async def get_metrics(request: web.Request) -> web.Response:
@@ -166,6 +174,14 @@ async def device_server(make_server: ServerFactory) -> RecordingServer:
             rows = cfg.rows
         return web.json_response(rows)
 
+    async def get_system(request: web.Request) -> web.Response:
+        await _capture(request)
+        if cfg.system_status != 200:
+            return _resp(cfg.system_body, cfg.system_status)
+        if cfg.system_raw is not None:
+            return web.Response(body=cfg.system_raw, content_type="text/html")
+        return web.json_response(cfg.system_rows)
+
     async def set_metric(request: web.Request) -> web.Response:
         await _capture(request)
         if cfg.post_status != 200:
@@ -175,6 +191,7 @@ async def device_server(make_server: ServerFactory) -> RecordingServer:
     return await make_server(
         [
             web.get("/api/v1/metrics", get_metrics),
+            web.get("/api/v1/system", get_system),
             web.post("/api/v1/metrics", set_metric),
         ],
         cfg=cfg,

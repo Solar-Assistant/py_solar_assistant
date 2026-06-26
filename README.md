@@ -104,16 +104,39 @@ metrics = await c.get_metrics("battery_1/*", "total/pv_power")
 await c.set_metric("inverter_1/charge_current_limit", "20")
 ```
 
-### Standalone functions
+### Read system metrics
 
-For one-off calls without connection reuse:
+`GET /api/v1/system` exposes unit-level metrics (Site ID, software version, CPU temperature, free storage) in the same row shape as
+`get_metrics`. A unit running a SolarAssistant build that predates the endpoint responds `404`, which raises `SolarAssistantError`
+like any other non-200 — catch it and check `.status == 404` to detect old firmware.
 
 ```python
-from py_solar_assistant import get_device_metrics, set_metric
+rows = await c.get_system_metrics()  # list[DeviceMetric]
 
-metrics = await get_device_metrics("192.168.1.100", password="<web-password>")
-await set_metric("192.168.1.100", "inverter_1/charge_current_limit", "20", password="<web-password>")
+# Typed convenience accessors - each returns None only if the value is unset/unreadable.
+# Each does its own request, so to read several at once prefer get_system_metrics() above.
+site_id = await c.get_site_id()                  # int | None
+version = await c.get_software_version()         # str | None
+cpu_temperature = await c.get_cpu_temperature()  # int | None  (°C)
+free_storage = await c.get_free_storage()        # int | None  (MB)
 ```
+
+### Standalone functions
+
+Every `DeviceClient` method has a module-level twin that opens and closes its own
+connection — handy for one-off calls without managing a context:
+
+```python
+from py_solar_assistant import get_device_site_id
+
+site_id = await get_device_site_id("192.168.1.100", password="<web-password>")  # int | None
+```
+
+The rest follow the same shape: `get_device_metrics`, `set_metric`,
+`get_device_system_metrics`, `get_device_software_version`,
+`get_device_cpu_temperature`, `get_device_free_storage`. See
+[`examples/rest_system.py`](examples/rest_system.py) for reading the system
+metrics (including the `404`/old-firmware case).
 
 ---
 
@@ -230,6 +253,7 @@ Runnable scripts are in the [`examples/`](examples/) folder:
 | Script                                            | Description                                                      |
 | ------------------------------------------------- | ---------------------------------------------------------------- |
 | [`rest_read.py`](examples/rest_read.py)           | Fetch all metrics once via REST and print them grouped by device |
+| [`rest_system.py`](examples/rest_system.py)       | Read a unit's system metrics, handling the 404/old-firmware case  |
 | [`rest_set.py`](examples/rest_set.py)             | Write a metric value via REST                                    |
 | [`websocket_read.py`](examples/websocket_read.py) | Stream live metrics via WebSocket until Ctrl+C                   |
 | [`websocket_set.py`](examples/websocket_set.py)   | Write a setting via WebSocket                                    |

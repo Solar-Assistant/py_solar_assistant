@@ -13,7 +13,12 @@ from .cloud import (
 from .device import (
     DeviceClient,
     DeviceMetric,
+    get_device_cpu_temperature,
+    get_device_free_storage,
     get_device_metrics,
+    get_device_site_id,
+    get_device_software_version,
+    get_device_system_metrics,
     set_metric,
 )
 from .socket import (
@@ -44,6 +49,11 @@ __all__ = [  # noqa: RUF022  (grouped by client surface, not sorted alphabetical
     "DeviceClient",
     "DeviceMetric",
     "get_device_metrics",
+    "get_device_system_metrics",
+    "get_device_site_id",
+    "get_device_software_version",
+    "get_device_cpu_temperature",
+    "get_device_free_storage",
     "set_metric",
     # WebSocket
     "Options",
