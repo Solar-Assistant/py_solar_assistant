@@ -109,6 +109,7 @@ class Options:
 
 
 MetricHandler = Callable[[Metric], None]
+SystemMetricsHandler = Callable[[list[Metric]], None]
 MessageHandler = Callable[[Message], None | Awaitable[None]]
 
 
@@ -168,6 +169,17 @@ class Socket:
                 for f in filters
             ]
         await self.join_with_payload("metrics", payload)
+
+    async def subscribe_system_metrics(self, handler: SystemMetricsHandler) -> None:
+        """Register a handler for the unit's system metrics.
+
+        The unit pushes the system metrics on join and on every refresh;
+        ``handler`` receives the whole snapshot each time.
+
+        Call alongside :meth:`subscribe_metrics`, which joins the channel; the
+        server pushes ``system`` events regardless of any topic filters.
+        """
+        self.subscribe("metrics", "system", lambda msg: self._on_system(msg, handler))
 
     def subscribe(self, topic: str, event: str, fn: MessageHandler) -> None:
         """Register a handler for a specific topic+event.
@@ -254,26 +266,12 @@ class Socket:
         for item in msg.payload.get("metrics", []):
             t = item.get("topic", "")
             defn = self._defs.get(t, {})
-            handler(
-                Metric(
-                    topic=t,
-                    device=defn.get("device", "") or "",
-                    number=defn.get("number"),
-                    group=defn.get("group", "") or "",
-                    name=defn.get("name", "") or "",
-                    value=item.get("value"),
-                    unit=defn.get("unit", "") or "",
-                    platform=defn.get("platform"),
-                    device_class=defn.get("device_class"),
-                    state_class=defn.get("state_class"),
-                    unit_of_measurement=defn.get("unit_of_measurement"),
-                    min=defn.get("min"),
-                    max=defn.get("max"),
-                    options=defn.get("options"),
-                    payload_on=defn.get("payload_on"),
-                    payload_off=defn.get("payload_off"),
-                )
-            )
+            handler(_metric_from_fields({**defn, "topic": t, "value": item.get("value")}))
+
+    def _on_system(self, msg: Message, handler: SystemMetricsHandler) -> None:
+        # Unlike ``data`` rows, ``system`` rows are self-contained, so build from
+        # each item directly without merging ``self._defs``.
+        handler([_metric_from_fields(item) for item in msg.payload.get("metrics", [])])
 
     async def _heartbeat(self) -> None:
         while True:
@@ -312,6 +310,28 @@ class Socket:
     def _next_ref(self) -> str:
         self._ref += 1
         return str(self._ref)
+
+
+def _metric_from_fields(d: dict[str, Any]) -> Metric:
+    """Build a ``Metric`` from a field dict"""
+    return Metric(
+        topic=d.get("topic", "") or "",
+        device=d.get("device", "") or "",
+        number=d.get("number"),
+        group=d.get("group", "") or "",
+        name=d.get("name", "") or "",
+        value=d.get("value"),
+        unit=d.get("unit", "") or "",
+        platform=d.get("platform"),
+        device_class=d.get("device_class"),
+        state_class=d.get("state_class"),
+        unit_of_measurement=d.get("unit_of_measurement"),
+        min=d.get("min"),
+        max=d.get("max"),
+        options=d.get("options"),
+        payload_on=d.get("payload_on"),
+        payload_off=d.get("payload_off"),
+    )
 
 
 def _decode(raw: str) -> Message | None:

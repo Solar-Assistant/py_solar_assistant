@@ -193,6 +193,60 @@ class TestSubscribeMetrics:
         assert join[4] == {}
 
 
+class TestSubscribeSystemMetrics:
+    async def test_receives_self_contained_system_snapshot(self, ws_server):
+        # The unit pushes a ``system`` event whose rows are self-contained (full
+        # device/group/name/unit/value), unlike ``data`` rows; the handler gets
+        # the whole snapshot per push.
+        ws_server.cfg.push_frames = [
+            [
+                "1",
+                None,
+                "metrics",
+                "system",
+                {
+                    "metrics": [
+                        {
+                            "topic": "system/site_id",
+                            "device": "system",
+                            "group": "Info",
+                            "name": "Site ID",
+                            "value": 3,
+                            "unit": "",
+                        },
+                        {
+                            "topic": "system/cpu_temperature",
+                            "device": "system",
+                            "group": "Status",
+                            "name": "CPU temperature",
+                            "value": 47,
+                            "unit": "°C",
+                        },
+                    ]
+                },
+            ]
+        ]
+        ws_server.cfg.close_after_join = True
+
+        sock = await connect(Options(local_ip=ws_server.host, password="x"))
+        snapshots: list[list[Metric]] = []
+        await sock.subscribe_system_metrics(snapshots.append)
+        await sock.join("metrics")
+        await asyncio.wait_for(sock.listen(), timeout=2)
+        await sock.close()
+
+        assert len(snapshots) == 1
+        site_id, cpu = snapshots[0]
+        assert site_id.topic == "system/site_id"
+        assert site_id.value == 3
+        assert site_id.name == "Site ID"
+        assert site_id.device == "system"
+        assert cpu.topic == "system/cpu_temperature"
+        assert cpu.value == 47
+        assert cpu.unit == "°C"
+        assert cpu.group == "Status"
+
+
 class TestDispatch:
     async def test_wildcard_subscription_receives_pushed_frames(self, ws_server):
         ws_server.cfg.push_frames = [["1", None, "weather", "update", {"temp": 21}]]
