@@ -1,3 +1,14 @@
+## v0.3.0 (2026-06-30)
+
+### Feat
+
+- **socket**: subscribe to system metrics over the WebSocket
+- **device**: add system-metrics REST accessors
+
+### Refactor
+
+- **cloud**: route non-2xx through credential-safe error helpers
+
 ## v0.2.1 (2026-06-14)
 
 ### Fix
