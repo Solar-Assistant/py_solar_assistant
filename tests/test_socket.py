@@ -193,58 +193,96 @@ class TestSubscribeMetrics:
         assert join[4] == {}
 
 
-class TestSubscribeSystemMetrics:
-    async def test_receives_self_contained_system_snapshot(self, ws_server):
-        # The unit pushes a ``system`` event whose rows are self-contained (full
-        # device/group/name/unit/value), unlike ``data`` rows; the handler gets
-        # the whole snapshot per push.
+def system_event(*, cpu: int) -> list:
+    """The ``system`` event: self-contained rows for site ID and CPU temperature."""
+    return [
+        "1",
+        None,
+        "metrics",
+        "system",
+        {"metrics": [SITE_ID | {"value": 3}, CPU | {"value": cpu}]},
+    ]
+
+
+def data(*items: tuple[str, object]) -> list:
+    return ["1", None, "metrics", "data", {"metrics": [{"topic": t, "value": v} for t, v in items]}]
+
+
+SITE_ID = {"topic": "system/site_id", "device": "system", "group": "Info", "name": "Site ID"}
+CPU = {
+    "topic": "system/cpu_temperature",
+    "device": "system",
+    "group": "Status",
+    "name": "CPU temperature",
+    "unit": "°C",
+    "platform": "sensor",
+    "device_class": "temperature",
+}
+PV = {
+    "topic": "total/pv_power",
+    "device": "total",
+    "group": "Info",
+    "name": "PV Power",
+    "unit": "W",
+}
+DEFINITIONS = ["1", None, "metrics", "definition", {"definitions": [SITE_ID, CPU, PV]}]
+
+
+async def received(ws_server, *filters: TopicFilter) -> list[Metric]:
+    """The metrics a handler receives for ``filters`` from the frames the server pushes."""
+    ws_server.cfg.close_after_join = True
+    sock = await connect(Options(local_ip=ws_server.host, password="x"))
+    metrics: list[Metric] = []
+    await sock.subscribe_metrics(metrics.append, *filters)
+    await asyncio.wait_for(sock.listen(), timeout=2)
+    await sock.close()
+    return metrics
+
+
+class TestSystemMetrics:
+    async def test_streamed_like_any_other_metric(self, ws_server):
         ws_server.cfg.push_frames = [
-            [
-                "1",
-                None,
-                "metrics",
-                "system",
-                {
-                    "metrics": [
-                        {
-                            "topic": "system/site_id",
-                            "device": "system",
-                            "group": "Info",
-                            "name": "Site ID",
-                            "value": 3,
-                            "unit": "",
-                        },
-                        {
-                            "topic": "system/cpu_temperature",
-                            "device": "system",
-                            "group": "Status",
-                            "name": "CPU temperature",
-                            "value": 47,
-                            "unit": "°C",
-                        },
-                    ]
-                },
-            ]
+            DEFINITIONS,
+            data(("system/cpu_temperature", 47), ("total/pv_power", 900)),
         ]
-        ws_server.cfg.close_after_join = True
+        metrics = await received(ws_server, TopicFilter("system/*"), TopicFilter("total/*"))
 
-        sock = await connect(Options(local_ip=ws_server.host, password="x"))
-        snapshots: list[list[Metric]] = []
-        await sock.subscribe_system_metrics(snapshots.append)
-        await sock.join("metrics")
-        await asyncio.wait_for(sock.listen(), timeout=2)
-        await sock.close()
+        assert [(m.topic, m.value) for m in metrics] == [
+            ("system/cpu_temperature", 47),
+            ("total/pv_power", 900),
+        ]
+        assert metrics[0].device_class == "temperature"
 
-        assert len(snapshots) == 1
-        site_id, cpu = snapshots[0]
-        assert site_id.topic == "system/site_id"
-        assert site_id.value == 3
-        assert site_id.name == "Site ID"
-        assert site_id.device == "system"
-        assert cpu.topic == "system/cpu_temperature"
-        assert cpu.value == 47
+    async def test_older_build_event_reaches_the_metric_handler(self, ws_server):
+        ws_server.cfg.push_frames = [system_event(cpu=47)]
+        metrics = await received(ws_server, TopicFilter("system/cpu_*"))
+
+        (cpu,) = metrics
+        assert (cpu.topic, cpu.value) == ("system/cpu_temperature", 47)
+        assert cpu.name == "CPU temperature"
         assert cpu.unit == "°C"
         assert cpu.group == "Status"
+
+    @pytest.mark.parametrize("filters", [(), (TopicFilter("total/*"),)])
+    async def test_older_build_event_is_left_out_unless_named(self, ws_server, filters):
+        ws_server.cfg.push_frames = [system_event(cpu=47)]
+        assert await received(ws_server, *filters) == []
+
+    async def test_event_is_ignored_once_the_stream_carries_system_metrics(self, ws_server):
+        ws_server.cfg.push_frames = [
+            system_event(cpu=47),
+            DEFINITIONS,
+            data(("system/site_id", 3), ("system/cpu_temperature", 47)),
+            system_event(cpu=52),
+        ]
+        metrics = await received(ws_server, TopicFilter("system/*"))
+
+        assert [(m.topic, m.value) for m in metrics] == [
+            ("system/site_id", 3),
+            ("system/cpu_temperature", 47),
+            ("system/site_id", 3),
+            ("system/cpu_temperature", 47),
+        ]
 
 
 class TestDispatch:

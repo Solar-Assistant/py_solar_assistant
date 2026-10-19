@@ -106,9 +106,10 @@ await c.set_metric("inverter_1/charge_current_limit", "20")
 
 ### Read system metrics
 
-`GET /api/v1/system` exposes unit-level metrics (Site ID, software version, CPU temperature, free storage) in the same row shape as
-`get_metrics`. A unit running a SolarAssistant build that predates the endpoint responds `404`, which raises `SolarAssistantError`
-like any other non-200 — catch it and check `.status == 404` to detect old firmware.
+The unit's own metrics (Site ID, software version, CPU temperature and usage, free storage and memory) are the `system/*` topics, in
+the same row shape as `get_metrics`. They are read from `GET /api/v1/metrics?topic=system/*`; a unit running a build that doesn't list
+them there is read from the older `GET /api/v1/system` instead. A build that predates both responds `404` to the second request, which
+raises `SolarAssistantError` like any other non-200 — catch it and check `.status == 404` to detect old firmware.
 
 ```python
 rows = await c.get_system_metrics()  # list[DeviceMetric]
@@ -217,6 +218,15 @@ inverter_*/temperature
 ```
 
 Only metrics in groups `Info`, `Status`, and `Settings` are sent.
+
+### System metrics
+
+The unit's own diagnostics (`system/*`: Site ID, software version, CPU temperature and usage, free storage and memory) are not part of
+the default set. Name them like any other topic and they arrive through the same handler:
+
+```python
+await sock.subscribe_metrics(handler, TopicFilter(topic="total/*"), TopicFilter(topic="system/*"))
+```
 
 ### Write a setting
 

@@ -147,6 +147,10 @@ async def device_server(make_server: ServerFactory) -> RecordingServer:
     is set. Error responses come from ``cfg.get_status``/``cfg.get_body`` and
     ``cfg.post_status``/``cfg.post_body``.
 
+    A unit that serves system metrics on the metrics path is
+    ``cfg.rows_by_topic = {"system/*": [...]}``; left unset, ``?topic=system/*``
+    gets the empty ``cfg.rows`` an older unit answers with.
+
     ``GET /api/v1/system`` returns ``cfg.system_rows`` (status
     ``cfg.system_status``/body ``cfg.system_body`` on error), or
     ``cfg.system_raw`` (bytes) to return a non-JSON 200 body verbatim.

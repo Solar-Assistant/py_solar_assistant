@@ -1,8 +1,8 @@
 """REST example: read a SolarAssistant unit's system metrics.
 
-``GET /api/v1/system`` exists only on newer SolarAssistant builds. An older unit
-returns ``404``, which raises ``SolarAssistantError`` - catch it to detect old
-firmware rather than relying on a special return value.
+System metrics exist only on newer SolarAssistant builds. A unit that predates
+them returns ``404``, which raises ``SolarAssistantError`` - catch it to detect
+old firmware rather than relying on a special return value.
 """
 
 import asyncio
@@ -18,7 +18,7 @@ async def main() -> None:
         rows = await sa.get_device_system_metrics(HOST, password=PASSWORD)
     except sa.SolarAssistantError as err:
         if err.status == 404:
-            print(f"{HOST} runs a build without /api/v1/system")
+            print(f"{HOST} runs a build without system metrics")
             return
         raise
 

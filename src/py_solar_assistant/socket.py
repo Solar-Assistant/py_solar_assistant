@@ -33,6 +33,8 @@ from typing import Any
 
 import aiohttp
 
+from . import _legacy
+
 _LOGGER = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL = 30  # seconds
@@ -109,7 +111,6 @@ class Options:
 
 
 MetricHandler = Callable[[Metric], None]
-SystemMetricsHandler = Callable[[list[Metric]], None]
 MessageHandler = Callable[[Message], None | Awaitable[None]]
 
 
@@ -154,10 +155,13 @@ class Socket:
         Pass ``TopicFilter`` instances to subscribe to specific topics
         server-side; otherwise the server applies its default curated set
         (``total/*``, selected ``battery_*/*`` and ``inverter_*/*`` topics).
-        Only metrics in groups Info, Status, and Settings are sent.
+        Only metrics in groups Info, Status, and Settings are sent. The unit's
+        own diagnostics (``system/*``) are not in the default set: name them to
+        receive them.
         """
         self.subscribe("metrics", "definition", self._on_definition)
         self.subscribe("metrics", "data", lambda msg: self._on_data(msg, handler))
+        _legacy.subscribe_system_event(self, handler, filters)
 
         payload: dict[str, Any] = {}
         if filters:
@@ -169,17 +173,6 @@ class Socket:
                 for f in filters
             ]
         await self.join_with_payload("metrics", payload)
-
-    async def subscribe_system_metrics(self, handler: SystemMetricsHandler) -> None:
-        """Register a handler for the unit's system metrics.
-
-        The unit pushes the system metrics on join and on every refresh;
-        ``handler`` receives the whole snapshot each time.
-
-        Call alongside :meth:`subscribe_metrics`, which joins the channel; the
-        server pushes ``system`` events regardless of any topic filters.
-        """
-        self.subscribe("metrics", "system", lambda msg: self._on_system(msg, handler))
 
     def subscribe(self, topic: str, event: str, fn: MessageHandler) -> None:
         """Register a handler for a specific topic+event.
@@ -264,14 +257,11 @@ class Socket:
 
     def _on_data(self, msg: Message, handler: MetricHandler) -> None:
         for item in msg.payload.get("metrics", []):
-            t = item.get("topic", "")
-            defn = self._defs.get(t, {})
-            handler(_metric_from_fields({**defn, "topic": t, "value": item.get("value")}))
+            handler(self._metric(item))
 
-    def _on_system(self, msg: Message, handler: SystemMetricsHandler) -> None:
-        # Unlike ``data`` rows, ``system`` rows are self-contained, so build from
-        # each item directly without merging ``self._defs``.
-        handler([_metric_from_fields(item) for item in msg.payload.get("metrics", [])])
+    def _metric(self, item: dict[str, Any]) -> Metric:
+        defn = self._defs.get(item.get("topic", ""), {})
+        return _metric_from_fields({**defn, **item})
 
     async def _heartbeat(self) -> None:
         while True:

@@ -36,7 +36,7 @@ def row(topic: str = "total/pv_power", **over: object) -> dict:
 
 
 def system_row(topic: str = "system/site_id", **over: object) -> dict:
-    """A ``/api/v1/system`` row as the device returns it (no ``number``/``unit``)."""
+    """A system metric row as the device returns it (no ``number``/``unit``)."""
     base = {
         "topic": topic,
         "device": "system",
@@ -210,11 +210,78 @@ class TestGetMetricsErrors:
                 await c.get_metrics()
 
 
-class TestSystemMetrics:
-    async def test_hits_system_endpoint(self, device_server):
+class TestSystemMetricsFromMetricsPath:
+    async def test_reads_system_topics_from_the_metrics_endpoint(self, device_server):
+        device_server.cfg.rows_by_topic = {
+            "system/*": [
+                system_row(),
+                system_row("system/cpu_usage", group="Status", name="CPU usage", value=7, unit="%"),
+            ]
+        }
+        async with DeviceClient(device_server.host, password="x", scheme="http") as c:
+            metrics = await c.get_system_metrics()
+        assert [m.topic for m in metrics] == ["system/site_id", "system/cpu_usage"]
+        assert metrics[1].unit == "%"
+        assert [(r.path, r.query) for r in device_server.requests] == [
+            ("/api/v1/metrics", {"topic": "system/*"})
+        ]
+
+    async def test_null_value_row_is_not_mistaken_for_an_old_unit(self, device_server):
+        # An unactivated unit lists system/site_id with a null value.
+        device_server.cfg.rows_by_topic = {"system/*": [system_row(value=None)]}
+        async with DeviceClient(device_server.host, password="x", scheme="http") as c:
+            assert await c.get_site_id() is None
+        assert [r.path for r in device_server.requests] == ["/api/v1/metrics"]
+
+    async def test_non_200_raises_without_falling_back(self, device_server):
+        device_server.cfg.get_status = 401
+        device_server.cfg.system_rows = [system_row()]
+        async with DeviceClient(device_server.host, password="x", scheme="http") as c:
+            with pytest.raises(SolarAssistantError) as exc:
+                await c.get_system_metrics()
+        assert exc.value.status == 401
+        assert [r.path for r in device_server.requests] == ["/api/v1/metrics"]
+
+    async def test_typed_accessors(self, device_server):
+        device_server.cfg.rows_by_topic = {
+            "system/*": [
+                system_row(value=987654),
+                system_row("system/software_version", name="Software version", value="2026-10-12"),
+                system_row("system/cpu_temperature", group="Status", name="CPU temp", value=47),
+                system_row("system/free_storage", group="Status", name="Free storage", value=8192),
+            ]
+        }
+        async with DeviceClient(device_server.host, password="x", scheme="http") as c:
+            assert await c.get_site_id() == 987654
+            assert await c.get_software_version() == "2026-10-12"
+            assert await c.get_cpu_temperature() == 47
+            assert await c.get_free_storage() == 8192
+
+    async def test_standalone_helper(self, device_server):
+        device_server.cfg.rows_by_topic = {"system/*": [system_row(value=42)]}
+        metrics = await get_device_system_metrics(device_server.host, password="x", scheme="http")
+        assert metrics[0].value == 42
+        assert device_server.last_request.path == "/api/v1/metrics"
+
+
+class TestSystemMetricsOnAnOlderUnit:
+    async def test_falls_back_to_system_endpoint(self, device_server):
         async with DeviceClient(device_server.host, password="x", scheme="http") as c:
             await c.get_system_metrics()
-        assert device_server.last_request.path == "/api/v1/system"
+        assert [(r.path, r.query) for r in device_server.requests] == [
+            ("/api/v1/metrics", {"topic": "system/*"}),
+            ("/api/v1/system", {}),
+        ]
+
+    async def test_remembers_the_unit_is_older(self, device_server):
+        async with DeviceClient(device_server.host, password="x", scheme="http") as c:
+            await c.get_system_metrics()
+            await c.get_system_metrics()
+        assert [r.path for r in device_server.requests] == [
+            "/api/v1/metrics",
+            "/api/v1/system",
+            "/api/v1/system",
+        ]
 
     async def test_parses_system_rows(self, device_server):
         device_server.cfg.system_rows = [
@@ -364,8 +431,8 @@ class TestSystemMetrics:
         async with DeviceClient(device_server.host, password="x", scheme="http") as c:
             assert await c.get_free_storage() == 8192
 
-    async def test_one_fetch_serves_all_via_get_system_metrics(self, device_server):
-        # The efficient path for several values: one request, pick them out.
+    async def test_one_call_serves_all_via_get_system_metrics(self, device_server):
+        # The efficient path for several values: one call, pick them out.
         device_server.cfg.system_rows = [
             system_row(value=12345),
             system_row("system/software_version", name="Software version", value="2026-06-15"),
@@ -378,7 +445,7 @@ class TestSystemMetrics:
             "system/software_version": "2026-06-15",
             "system/free_storage": 8192,
         }
-        assert len([r for r in device_server.requests if r.method == "GET"]) == 1
+        assert len([r for r in device_server.requests if r.path == "/api/v1/system"]) == 1
 
 
 class TestStandaloneHelpers:
