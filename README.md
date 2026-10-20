@@ -206,6 +206,8 @@ If no filters are passed the server applies a default set of common metrics:
 
 ```
 total/*
+grid/*
+weather/*
 battery_*/voltage
 battery_*/state_of_charge
 battery_*/power
@@ -215,6 +217,7 @@ inverter_*/load_power
 inverter_*/grid_power
 inverter_*/device_mode
 inverter_*/temperature
+ev_charger_*/*
 ```
 
 Only metrics in groups `Info`, `Status`, and `Settings` are sent.
