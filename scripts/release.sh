@@ -8,15 +8,15 @@
 # uploaded to PyPI, and a matching GitHub release is published. Run from a
 # developer machine - no GitHub Actions, by design.
 #
-# Requirements: git, gh (authenticated), python, curl, and pipx (used to run
-# commitizen, build, and twine without polluting your environment). PyPI
+# Requirements: git, gh (authenticated), python, curl, and the release
+# dependency group installed (python -m pip install -e . --group release). PyPI
 # credentials must be available to twine (~/.pypirc or TWINE_USERNAME /
 # TWINE_PASSWORD - use an API token: username __token__).
 #
 # Recovery: commitizen makes the bump commit + tag BEFORE the package is built
 # and uploaded. If a later step fails, the local bump is already in place but
 # nothing was pushed. Fix the cause, then finish by hand:
-#     pipx run build && pipx run twine upload dist/*
+#     python -m build && python -m twine upload dist/*
 #     git push origin <branch> <tag>
 #     gh release create <tag> dist/* --title <tag> --notes-file <notes>
 # Or undo it: git tag -d <tag> && git reset --hard HEAD~1
@@ -39,7 +39,8 @@ Options:
 Versioning is automatic: feat -> minor, fix/refactor/perf -> patch, breaking ->
 major (capped to a minor bump while 0.x). Reword non-compliant commits first.
 
-Requirements: git, gh (authenticated), python, curl, pipx, and PyPI credentials
+Requirements: git, gh (authenticated), python, curl, the release dependency
+group (python -m pip install -e . --group release), and PyPI credentials
 available to twine (~/.pypirc or TWINE_USERNAME/TWINE_PASSWORD).
 EOF
 }
@@ -47,11 +48,13 @@ EOF
 die()  { echo "error: $*" >&2; exit 1; }
 info() { echo "==> $*"; }
 
-# Run these via pipx so they need not be installed globally.
-CZ=(pipx run --spec commitizen cz)
-BUILD=(pipx run build)
-TWINE=(pipx run twine)
-RUFF=(pipx run ruff)
+# The release tools run from the release dependency group, pinned in
+# pyproject.toml: a newer ruff can add lint rules, and a newer commitizen can
+# change how the version and changelog come out.
+CZ=(python -m commitizen)
+BUILD=(python -m build)
+TWINE=(python -m twine)
+RUFF=(python -m ruff)
 
 PKG="py-solar-assistant"   # PyPI distribution name
 
@@ -90,9 +93,10 @@ cd "$ROOT"
 # --- Preflight -------------------------------------------------------------
 command -v git  >/dev/null || die "git not found"
 command -v gh   >/dev/null || die "GitHub CLI (gh) not found - https://cli.github.com"
-command -v pipx >/dev/null || die "pipx not found - https://pipx.pypa.io"
 command -v curl >/dev/null || die "curl not found"
 [ -f "$ROOT/pyproject.toml" ] || die "pyproject.toml not found (run from the py_solar_assistant repo)"
+python -c 'import py_solar_assistant, pytest, pytest_asyncio, aiohttp, ruff, commitizen, build, twine' 2>/dev/null \
+  || die "release dependencies missing - run: python -m pip install -e . --group release"
 
 if ! $DRY_RUN; then
   gh auth status >/dev/null 2>&1 || die "gh is not authenticated - run: gh auth login"
@@ -117,8 +121,6 @@ info "Linting with ruff"
 "${RUFF[@]}" format --check .
 
 info "Running the test suite"
-python -c 'import py_solar_assistant, pytest, pytest_asyncio, aiohttp' 2>/dev/null \
-  || die "test dependencies missing - run: python -m pip install -e . --group dev"
 python -m pytest -q
 
 # --- Compute the next version ----------------------------------------------

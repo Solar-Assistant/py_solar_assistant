@@ -13,8 +13,10 @@ derived from the commits since the last release, so there is no manual bump flag
 
 ## Prerequisites
 
-- `git`, `python`, `curl`, and [`pipx`](https://pipx.pypa.io) (used to run
-  commitizen, `build`, and `twine` without polluting your environment).
+- `git`, `python` and `curl`.
+- The release dependencies installed (`python -m pip install -e . --group release`):
+  commitizen, `build`, `twine`, and the dev group's ruff and test tools, at the
+  versions `pyproject.toml` pins.
 - The [GitHub CLI](https://cli.github.com) (`gh`) authenticated with rights to
   create releases on this repo (`gh auth login`).
 - PyPI credentials available to `twine` - use an API token (username `__token__`)
@@ -73,7 +75,7 @@ uploaded. If a later step fails, the local bump is already in place but nothing
 was pushed. Fix the cause, then finish by hand:
 
 ```sh
-pipx run build && pipx run twine upload dist/*
+python -m build && python -m twine upload dist/*
 git push origin master <tag>
 gh release create <tag> dist/* --title <tag> --notes-file <notes>
 ```
