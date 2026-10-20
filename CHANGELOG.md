@@ -1,3 +1,14 @@
+## v0.4.0 (2026-10-20)
+
+### BREAKING CHANGE
+
+- Socket.subscribe_system_metrics is removed. Pass
+TopicFilter("system/*") to subscribe_metrics instead.
+
+### Feat
+
+- read system metrics from the metrics paths
+
 ## v0.3.0 (2026-06-30)
 
 ### Feat
